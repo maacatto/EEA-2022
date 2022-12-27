@@ -120,7 +120,7 @@ Regresión Bayesiana
 
 #### Construcción datasets NBA
 
-- [Diccionario de términos NBA](clase 10/creacion_datasets_nba.html)
+- [Notebook creación de datasets NBA](clase 10/creacion_datasets_nba.html)
 
 ### Clase 10: 22-10
 
@@ -138,8 +138,7 @@ Regularización: modelos Ridge, Lasso y Elastic Net y trade off sesgo-varianza
 
 #### Datasets para técnicas de regularización
 
-- [Diccionario de términos NBA](clase 10/diccionario_terminos.csv)
-- [Datos de estádisticas de juego de la NBA](clase 10/ nba_player_stats_salary_2019_2020.csv)
+- [Datos de estádisticas de juego de la NBA](fuentes/nba/nba_player_stats_salary_2022_2023.csv)
 
 ### Clase 12: 05-11
 
@@ -147,8 +146,11 @@ Smoothing, GAM y Prophet.
 
 - [Prophet: implementacion de GAM para series de tiempo](clase 11/prophet_shopping.nb.html)
 
+### Clase 13: 26-11
 
-### Clase 14: 19-11
+Redes Neuronales
 
-Redes Neuronales. 
+- [Introducción a Redes Neuronales](clase 12/redes_fully_connected.nb.html)
+
+- [Introducción a tidymodels](clase 11/tidymodels.nb.html)
 

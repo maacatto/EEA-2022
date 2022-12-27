@@ -1,12 +1,15 @@
 ---
 title: "Regresión Logística"
-author: "Juan Barriola y Sofía Perini"
-date: "30 de Octubre de 2021"
+author: "Juan Barriola, Azul Villanueva y Franco Mastelli"
+date: "22 de Octubre de 2022"
 output:
   html_notebook:
     theme: spacelab
     toc: yes
     toc_float: yes
+    df_print: paged
+  html_document:
+    toc: yes
     df_print: paged
 ---
 <style type="text/css">
@@ -36,8 +39,12 @@ library(cowplot)
 library(OneR)
 library(rlang)
 library(caret)
-set.seed(2021)
 ```
+
+```{r}
+set.seed(2022)
+```
+
 
 ```{r, message=FALSE}
 # cargamos los datasets de train y test 
@@ -95,6 +102,7 @@ ggplot(distrib, aes(x = Survived, y = prop, fill = factor(Survived), label = pro
          geom_bar(stat="identity", position = "dodge") + facet_wrap(~ dataset) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   labs(x = "Sobrevivientes", y = "Proporción en %", title = "Proporción de sobrevivientes por dataset") + 
+  guides(fill=guide_legend(title="Survived"))+
   theme_bw() +
   scale_fill_brewer(palette="Set1")
 ```
@@ -106,9 +114,10 @@ Realizamos un gráfico exploratorio completo para ver el comportamiento y las re
 ```{r, message=FALSE, warning=FALSE, fig.width=8, fig.height=6, progress=FALSE}
 # graficamos con ggpairs coloreando por variable a predecir
 g <- dftitanic_train %>% 
+        mutate(Survived = factor(Survived)) %>%
         select("Survived","Pclass", "Sex", "Age", "Fare", "SibSp", "Parch") %>% 
         ggpairs(title = "Correlograma de variables",
-                mapping = aes(colour= factor(Survived)),
+                mapping = aes(colour= Survived),
                 progress = FALSE, 
                 lower=list(combo=wrap("facethist", binwidth=0.8))) +
         theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
@@ -130,7 +139,7 @@ g
 
 En este caso estamos modelando la probabilidad de la siguiente manera: 
 
-$P(X)= \beta_0 + \sum\limits_{j=1}^p \beta_j X$
+$P(X)= \beta_0 + \sum\limits_{j=1}^p \beta_j X_j$
 
 Veamos que tan bueno es el modelo lineal para esto, usando la edad como predictor.
 
@@ -162,7 +171,7 @@ Parece tener bastantes problemas para estimar la probabilidad de supervivencia d
 
 Para evitar estos problemas, usamos la **función logística**.
 
-$P(Y=1|X)= \frac{e^{\beta_0 + \sum\limits_{j=1}^p \beta_j X}}{1+e^{\beta_0 + \sum\limits_{j=1}^p \beta_j X}}$
+$P(Y=1|X)= \frac{e^{\beta_0 + \sum\limits_{j=1}^p \beta_j X_j}}{1+e^{\beta_0 + \sum\limits_{j=1}^p \beta_j X_j}}$
 
 El lado derecho se llama **expit**
 
@@ -170,7 +179,7 @@ Esta función acota el resultado entre 0 y 1, lo cual es mucho más adecuado par
 
 Luego de hacer algunas operaciones, podemos llegar a la expresión:
 
-$\log {\frac{P(x)}{1-P(x)}}= \beta_0 + \sum\limits_{j=1}^p \beta_j X$
+$\log {\frac{P(x)}{1-P(x)}}= \beta_0 + \sum\limits_{j=1}^p \beta_j X_j$
 
 El lado izquierdo es el logaritmo de los **odds** y se llama **logit**.
 
@@ -202,7 +211,7 @@ Se va a discutir sobre la interpretación de coeficientes y la evaluación en la
 
 ### Creación de fórmulas
 
-Para crear varios modoelos de regresión logística podemos utilizar la función `formulas` del paquete **modelr** para crear un objeto que contiene todas las fórmulas que vamos a utilizar. 
+Para crear varios modelos de regresión logística podemos utilizar la función `formulas` del paquete **modelr** para crear un objeto que contiene todas las fórmulas que vamos a utilizar. 
 
 En `.response` especificamos la variable respuesta de nuestras fórmulas y luego nombramos las fórmulas que queramos armar.
 
@@ -261,25 +270,25 @@ Observamos que todos los modelos tienen coeficientes significativos aunque el de
 
 Recordando la ecuación para modelar la probabilidad:
 
-$P(Y=1|X)= \frac{e^{\beta_0 + \sum\limits_{j=1}^p \beta_j X}}{1+e^{\beta_0 + \sum\limits_{j=1}^p \beta_j X}}$
+$P(Y=1|X)= \frac{e^{\beta_0 + \sum\limits_{j=1}^p \beta_j X_j}}{1+e^{\beta_0 + \sum\limits_{j=1}^p \beta_j X_j}}$
 
 Se observa que ahora las variables ya no tienen una relación lineal con la probabilidad. En este modelo un coeficiente positivo indica que frente a aumentos de dicha variable la probabilidad aumenta, mientras que un coeficiente negativo nos indica lo contrario. Para nuestros modelos:
 
 **Modelo class**
 
-* β0 = `r round((models %>% filter(models %in% c('class')) %>% mutate(tidy = map(mod, tidy)) %>%  unnest(tidy) %>% filter(term == '(Intercept)') %>% select(estimate))$estimate,5)` corresponde a personas que viajaron en primera clase.
+* $\hat{\beta_0}$ = `r round((models %>% filter(models %in% c('class')) %>% mutate(tidy = map(mod, tidy)) %>%  unnest(tidy) %>% filter(term == '(Intercept)') %>% select(estimate))$estimate,5)` corresponde a personas que viajaron en primera clase.
 
-* β1 = `r round((models %>% filter(models %in% c('class')) %>% mutate(tidy = map(mod, tidy)) %>%  unnest(tidy) %>% filter(term == 'Pclass2') %>% select(estimate))$estimate,5)` y β2 = `r round((models %>% filter(models %in% c('class')) %>% mutate(tidy = map(mod, tidy)) %>%  unnest(tidy) %>% filter(term == 'Pclass3') %>% select(estimate))$estimate,5)` corresponden a personas que viajaron en la segunda y tercera clase, respectivamente. El coeficiente estimado en ambos casos fue negativo, indicando que la **probabilidad de supervivencia disminuye** en comparación con la primera clase.  Al ser más negativo el coeficiente estimado de Pclass3, se espera que la probabilidad de Supervivencia sea menor aún para esta clase que para un pasajero en clase 2.
+* $\hat{\beta_{Pclass2}}$ = `r round((models %>% filter(models %in% c('class')) %>% mutate(tidy = map(mod, tidy)) %>%  unnest(tidy) %>% filter(term == 'Pclass2') %>% select(estimate))$estimate,5)` y $\hat{\beta_{Pclass3}}$ = `r round((models %>% filter(models %in% c('class')) %>% mutate(tidy = map(mod, tidy)) %>%  unnest(tidy) %>% filter(term == 'Pclass3') %>% select(estimate))$estimate,5)` corresponden a personas que viajaron en la segunda y tercera clase, respectivamente. El coeficiente estimado en ambos casos fue negativo, indicando que la **probabilidad de supervivencia disminuye** en comparación con la primera clase.  Al ser más negativo el coeficiente estimado de Pclass3, se espera que la probabilidad de Supervivencia sea menor aún para esta clase que para un pasajero en clase 2.
 
 **Modelo sex**
 
-* β0 = `r round((models %>% filter(models %in% c('sex')) %>% mutate(tidy = map(mod, tidy)) %>%  unnest(tidy) %>% filter(term == '(Intercept)') %>% select(estimate))$estimate,5)` corresponde a mujeres que viajaron a bordo del titanic.
+* $\hat{\beta_0}$ = `r round((models %>% filter(models %in% c('sex')) %>% mutate(tidy = map(mod, tidy)) %>%  unnest(tidy) %>% filter(term == '(Intercept)') %>% select(estimate))$estimate,5)` corresponde a mujeres que viajaron a bordo del titanic.
 
-* β1 = `r round((models %>% filter(models %in% c('sex')) %>% mutate(tidy = map(mod, tidy)) %>%  unnest(tidy) %>% filter(term == 'Sexmale') %>% select(estimate))$estimate,5)` representa a los hombres que viajaron en el titanic e indica que **la probabilidad de supervivencia se reduce** en comparación a las mujeres.
+* $\hat{\beta_{SexMale}}$ = `r round((models %>% filter(models %in% c('sex')) %>% mutate(tidy = map(mod, tidy)) %>%  unnest(tidy) %>% filter(term == 'Sexmale') %>% select(estimate))$estimate,5)` representa a los hombres que viajaron en el titanic e indica que **la probabilidad de supervivencia se reduce** en comparación a las mujeres.
 
 **Modelo age**
 
-* β1 = `r round((models %>% filter(models %in% c('age')) %>% mutate(tidy = map(mod, tidy)) %>%  unnest(tidy) %>% filter(term == 'Age') %>% select(estimate))$estimate,5)` indica que la **probabilidad de supervivencia disminuye** por cada año más de edad de la persona.
+* $\hat{\beta_{Age}}$ = `r round((models %>% filter(models %in% c('age')) %>% mutate(tidy = map(mod, tidy)) %>%  unnest(tidy) %>% filter(term == 'Age') %>% select(estimate))$estimate,5)` indica que la **probabilidad de supervivencia disminuye** por cada año más de edad de la persona.
 
 ### ¿Qué pasaría en un modelo múltiple?
 
@@ -361,13 +370,13 @@ prediction_bad <- models %>%
 violin_full = ggplot(prediction_full, aes(x=Survived, y=.fitted, group=Survived, fill=factor(Survived))) + 
   geom_violin() +
   theme_bw() +
-  guides(scale="none") +
+  guides(scale="none", fill=guide_legend(title="Survived"))+
   labs(title='Violin plot', subtitle='Modelo completo', y='Predicted probability')
 # graficamos el modelo malo
 violin_bad = ggplot(prediction_bad, aes(x=Survived, y=.fitted, group=Survived, fill=factor(Survived))) + 
   geom_violin() + 
   theme_bw() +
-  guides(scale="none") +
+  guides(scale="none", fill=guide_legend(title="Survived"))+
   labs(title='Violin plot', subtitle='Modelo malo', y='Predicted probability')
 # mostramos ambos
 plot_grid(violin_bad, violin_full)
@@ -424,7 +433,7 @@ Hosmer_Lemeshow_plot <- function(dataset, predicted_column, class_column, bins, 
 }
 ```
 
-Generamos los gráficos pasandole lo parámetros. 
+Generamos los gráficos pasándole lo parámetros. 
 
 ```{r, message=FALSE, warning=FALSE}
 # modelo completo
@@ -553,9 +562,9 @@ table_test = table_test %>%
 confusionMatrix(table(table_test$predicted_class, table_test$Survived), positive = "1")
 ```
 
-Al existir desbalanceo de clases, es posible que el analista desee saber si la precisión general (Accuracy) de su modelo es mejor que la proporción de datos con la clase mayoritaria (No-information Rate). confusionMatrix usa la función binom.test para probar que la precisión (Acc) es mejor que la tasa sin información (NIR). Si el P-Value [Acc > NIR] resulta significativo, entonces podemos decir que existe evidencia estadísticamente significativa para decir que la precisión del modelo es mejor que la tasa sin información. 
+Al existir desbalance de clases, es posible que el analista desee saber si la precisión general (Accuracy) de su modelo es mejor que la proporción de datos con la clase mayoritaria (No-information Rate). confusionMatrix usa la función binom.test para probar que la precisión (Acc) es mejor que la tasa sin información (NIR). Si el P-Value [Acc > NIR] resulta significativo, entonces podemos decir que existe evidencia estadísticamente significativa para decir que la precisión del modelo es mejor que la tasa sin información. 
 
-## Desbalanceo de la clase
+## Desbalance de la clase
 
 Al explorar el dataset vimos que existía cierto desbalance de clase. Esto puede tener un efecto en las estimaciones del modelo y su clasificación final.
 
@@ -565,111 +574,5 @@ Existen dos maneras sencillas con las cuales podemos trabajar con una clase desb
   
   * Sub-muestreo (undersampling) de la clase mayoritaria
   
-La función `glm` puede tomar como argumento una columna (`weigths`) de ponderadores para poder hacer esto. Podemos asignar pesos mayores a 1 a la clase minoritaria (oversampling) o menores a 1 a la clase mayoritaria (undersampling). En nuestro problema vamos a realizar un sobresampleo de la clase minoritaria.
-
-```{r, warning=FALSE}
-# Creamos la columna de ponderadores
-train <- dftitanic_train %>% mutate(wt = if_else(Survived == 1, 1.1, 1))
-# Creamos los modelos con la data 'balanceada'
-balanced_models <- data_frame(logit_formulas) %>% # dataframe a partir del objeto formulas
-  mutate(models = names(logit_formulas), # columna con los nombres de las formulas
-         expression = paste(logit_formulas), # columna con las expresiones de las formulas
-         mod = map(logit_formulas, ~glm(., family = 'binomial', data = train, weights = wt))) #Pasamos la columna wt como ponderadores
-```
-
-Vemos las estimaciones de los parámetros para el modelo completo. ¿Existen cambios?
-
-```{r,  warning=FALSE, echo=FALSE}
-balanced_models %>% 
-  filter(models == "PcSAF") %>%
-  mutate(tidy = map(mod,tidy)) %>%
-  unnest(tidy, .drop = TRUE) %>% 
-  mutate(estimate=round(estimate,5),
-         p.value=round(p.value,4))
-```
-
-Ahora veamos la evaluación de los modelos ¿Qué pasó con el porcentaje de deviance explicada? ¿Y con la nula?
-
-```{r, echo=FALSE}
-balanced_models <- balanced_models %>% 
-  mutate(glance = map(mod,glance))
-balanced_models %>% 
-  unnest(glance, .drop = TRUE) %>%
-  mutate(perc_explained_dev = 1-deviance/null.deviance) %>% 
-  select(-c(models, df.null, AIC, BIC)) %>% 
-  arrange(deviance)
-```
-
-```{r, echo=FALSE}
-balanced_models <- balanced_models %>% 
-  mutate(pred= map(mod,augment, type.predict = "response"))
-prediction_full <- balanced_models %>% 
-  filter(models=="PcSAF") %>% 
-  unnest(pred, .drop=TRUE)
-roc_full <- roc(response=prediction_full$Survived, predictor=prediction_full$.fitted)
-prediction_bad <- balanced_models %>% 
-  filter(models=="age") %>% 
-  unnest(pred, .drop=TRUE)
-roc_bad <- roc(response=prediction_bad$Survived, predictor=prediction_bad$.fitted)
-```
-
-### Violin plots, Curvas ROC y AUCs
-
-Realizamos los gráficos de violin, las curvas ROC y calculamos las AUC.
-
-```{r, warning=F, echo=FALSE}
-violin_full = ggplot(prediction_full, aes(x = Survived, y =.fitted, group = Survived, fill = factor(Survived))) + 
-  geom_violin() +
-  theme_bw() +
-  guides(fill=FALSE) +
-  labs(title='Violin plot', subtitle='Modelo completo', y='Predicted probability')
-
-violin_bad=ggplot(prediction_bad, aes(x = Survived, y =.fitted, group = Survived, fill = factor(Survived))) + 
-  geom_violin() + 
-  theme_bw() +
-  guides(fill=FALSE) +
-  labs(title='Violin plot', subtitle='Modelo malo', y='Predicted probability')
-
-plot_grid(violin_bad, violin_full)
-
-ggroc(list(full=roc_full, bad=roc_bad), size=1) + geom_abline(slope = 1, intercept = 1, linetype='dashed') + theme_bw() + labs(title='Curvas ROC', color='Modelo')
-
-print(paste('AUC Modelo completo:', round(roc_full$auc,3)))
-
-print(paste('AUC Modelo malo:', round(roc_bad$auc,3)))
-
-```
-
-> ¿Dónde se ven los cambios más notorios respecto a nuestros modelos anteriores que no tenían en cuenta el desbalance de la clase?
-
-### Punto de corte
-
-Volvemos a realizar las pruebas para varios puntos de corte y graficamos el accuracy, la sensibilidad, la especificidad, el recall y la precision para cada uno de ellos.
-
-```{r, echo=FALSE}
-cutoffs = seq(0.05,0.95,0.01)
-logit_pred= map_dfr(cutoffs, prediction_metrics)%>% mutate(term=as.factor(term))
-
-ggplot(logit_pred, aes(cutoff,estimate, group=term, color=term)) + geom_line(size=1) +
-  theme_bw() +
-  labs(title= 'Accuracy, Precision, Sensitivity y Specificity', subtitle= 'Modelo completo', color="")
-```
-
-¿Qué cambios vemos respecto al gráfico anterior?
-
-### Dataset de testing
-
-Probamos en el dataset de testing nuestro modelo balanceado. No es necesario que le creemos pesos al dataset de testeo.
-
-```{r, echo=FALSE}
-full_model <- glm(logit_formulas$PcSAF, family = 'binomial', data = train, weights = wt)
-
-table= augment(x=full_model, newdata=dftitanic_test, type.predict='response') 
-
-table=table %>% mutate(predicted_class=if_else(.fitted>0.42, 1, 0) %>% as.factor(),
-           Survived = factor(Survived))
-
-confusionMatrix(table(table$predicted_class, table$Survived), positive = "1")
-```
-
+La función `glm` puede tomar como argumento una columna (`weigths`) de ponderadores para poder hacer esto. Podemos asignar pesos mayores a 1 a la clase minoritaria (oversampling) o menores a 1 a la clase mayoritaria (undersampling). 
 
